@@ -29,7 +29,7 @@ class BaseNextBrain(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def upload_model(self, matrix: List[List[Any]]):
+    def upload_model(self, table: List[List[Any]]):
         raise NotImplementedError()
 
     @abstractmethod
@@ -41,7 +41,7 @@ class BaseNextBrain(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def upload_and_predict(self, matrix: List[List[Any]], predict_matrix: List[List[Any]], target: str) -> Dict:
+    def upload_and_predict(self, table: List[List[Any]], predict_table: List[List[Any]], target: str) -> Dict:
         raise NotImplementedError()
 
 
@@ -70,10 +70,10 @@ class NextBrain(BaseNextBrain):
 
             time.sleep(2)
 
-    def upload_model(self, matrix: List[List[Any]]) -> str:
+    def upload_model(self, table: List[List[Any]]) -> str:
         response = requests.post(f'{self.backend_url}/csv/import_matrix_token', json={
             'access_token': self.access_token,
-            'matrix': matrix,
+            'matrix': table,
         })
 
         data = response.json()
@@ -97,10 +97,10 @@ class NextBrain(BaseNextBrain):
         })
         return response.json()
 
-    def upload_and_predict(self, matrix: List[List[Any]], predict_matrix: List[List[Any]], target: str) -> Tuple[str, Dict]:
-        model_id = self.upload_model(matrix)
+    def upload_and_predict(self, table: List[List[Any]], predict_table: List[List[Any]], target: str) -> Tuple[str, Dict]:
+        model_id = self.upload_model(table)
         self.train_model(model_id, target)
-        return model_id, self.predict_model(model_id, predict_matrix[0], predict_matrix[1:])
+        return model_id, self.predict_model(model_id, predict_table[0], predict_table[1:])
 
 
 class AsyncNextBrain(BaseNextBrain):
@@ -133,10 +133,10 @@ class AsyncNextBrain(BaseNextBrain):
 
                 await asyncio.sleep(2)
 
-    async def upload_model(self, matrix: List[List[Any]]) -> str:
+    async def upload_model(self, table: List[List[Any]]) -> str:
         json = {
             'access_token': self.access_token,
-            'matrix': matrix,
+            'matrix': table,
         }
         async with aiohttp.ClientSession() as session:
             async with session.post(f'{self.backend_url}/csv/import_matrix_token', json=json) as response:
@@ -167,8 +167,8 @@ class AsyncNextBrain(BaseNextBrain):
             async with session.post(f'{self.backend_url}/model/predict_token/{model_id}', json=json) as response:
                 return await response.json()
 
-    async def upload_and_predict(self, matrix: List[List[Any]], predict_matrix: List[List[Any]], target: str) -> Tuple[str, Dict]:
+    async def upload_and_predict(self, table: List[List[Any]], predict_table: List[List[Any]], target: str) -> Tuple[str, Dict]:
         # Required sequential await
-        model_id = await self.upload_model(matrix)
+        model_id = await self.upload_model(table)
         await self.train_model(model_id, target)
-        return model_id, await self.predict_model(model_id, predict_matrix[0], predict_matrix[1:])
+        return model_id, await self.predict_model(model_id, predict_table[0], predict_table[1:])

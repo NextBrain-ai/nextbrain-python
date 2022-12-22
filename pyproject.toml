@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nextbrain"
-version = "0.1.1"
+version = "0.1.2"
 description = "Convenient access to the NextBrain API from python"
 authors = ["Softpoint Consultores S.L. <info@softpoint.es>", "Fernando Pérez <fernando@softpoint.es>"]
 readme = "README.md"
