@@ -1,10 +1,11 @@
 [tool.poetry]
 name = "nextbrain"
-version = "0.1.0"
+version = "0.1.1"
 description = "Convenient access to the NextBrain API from python"
-authors = ["Softpoint Consultores S.L. <info@softpoint.es>"]
+authors = ["Softpoint Consultores S.L. <info@softpoint.es>", "Fernando Pérez <fernando@softpoint.es>"]
 readme = "README.md"
 license = "LICENSE"
+repository = "https://github.com/NextBrain-ai/nextbrain-python"
 
 [tool.poetry.dependencies]
 python = "^3.7"
