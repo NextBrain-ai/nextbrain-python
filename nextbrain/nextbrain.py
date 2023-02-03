@@ -47,8 +47,8 @@ class BaseNextBrain(ABC):
 
 class NextBrain(BaseNextBrain):
 
-    def __init__(self, access_token: str):
-        super().__init__(access_token)
+    def __init__(self, access_token: str, **kwargs):
+        super().__init__(access_token, **kwargs)
 
     def wait_model(self, model_id: str, wait_imported: bool = True) -> None:
         while True:
@@ -105,11 +105,11 @@ class NextBrain(BaseNextBrain):
 
 class AsyncNextBrain(BaseNextBrain):
 
-    def __init__(self, access_token: str):
+    def __init__(self, access_token: str, **kwargs):
         if not ASYNC_AVAILABLE:
             raise ImportError(
                 'asyncio and aiohttp are required for async usage')
-        super().__init__(access_token)
+        super().__init__(access_token, **kwargs)
 
     async def wait_model(self, model_id: str, wait_imported: bool = True) -> None:
         json = {
