@@ -102,6 +102,11 @@ class NextBrain(BaseNextBrain):
         self.train_model(model_id, target)
         return model_id, self.predict_model(model_id, predict_table[0], predict_table[1:])
 
+    def delete_model(self, model_id: str) -> None:
+        requests.post(f'{self.backend_url}/model/delete_model_token/{model_id}', json={
+            'access_token': self.access_token,
+        })
+
 
 class AsyncNextBrain(BaseNextBrain):
 
@@ -172,3 +177,12 @@ class AsyncNextBrain(BaseNextBrain):
         model_id = await self.upload_model(table)
         await self.train_model(model_id, target)
         return model_id, await self.predict_model(model_id, predict_table[0], predict_table[1:])
+
+    async def delete_model(self, model_id: str) -> None:
+        json = {
+            'access_token': self.access_token,
+        }
+        async with aiohttp.ClientSession() as session:
+            async with session.post(f'{self.backend_url}/model/delete_model_token/{model_id}', json=json) as response:
+                # Sequential await is required
+                await response.json()
