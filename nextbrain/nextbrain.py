@@ -13,6 +13,12 @@ except ImportError:
     ASYNC_AVAILABLE = False
 
 
+class UnauthorizedException(Exception):
+
+    def __init__(self, message: str = 'Unauthorized'):
+        super().__init__(message)
+
+
 class BaseNextBrain(ABC):
 
     def __init__(self, access_token: str, backend_url: str = 'https://api.nextbrain.ai'):
@@ -55,6 +61,10 @@ class NextBrain(BaseNextBrain):
             response = requests.post(f'{self.backend_url}/model/status_token/{model_id}', json={
                 'access_token': self.access_token,
             })
+
+            if response.status_code == 401:
+                raise UnauthorizedException()
+
             data = response.json()
             if wait_imported:
                 if data['dataset_status'] == 'imported':
@@ -76,17 +86,24 @@ class NextBrain(BaseNextBrain):
             'matrix': table,
         })
 
+        if response.status_code == 401:
+            raise UnauthorizedException()
+
         data = response.json()
         model_id = data['model']['id']
         self.wait_model(model_id)
         return model_id
 
     def train_model(self, model_id: str, target: str) -> None:
-        requests.post(f'{self.backend_url}/model/train_token', json={
+        response = requests.post(f'{self.backend_url}/model/train_token', json={
             'access_token': self.access_token,
             'target': target,
             'model_id': model_id,
         })
+
+        if response.status_code == 401:
+            raise UnauthorizedException()
+
         self.wait_model(model_id, wait_imported=False)
 
     def predict_model(self, model_id: str, header: List[str], rows: List[List[Any]]) -> Dict:
@@ -95,6 +112,10 @@ class NextBrain(BaseNextBrain):
             'header': header,
             'rows': rows,
         })
+
+        if response.status_code == 401:
+            raise UnauthorizedException()
+
         return response.json()
 
     def upload_and_predict(self, table: List[List[Any]], predict_table: List[List[Any]], target: str) -> Tuple[str, Dict]:
@@ -103,9 +124,11 @@ class NextBrain(BaseNextBrain):
         return model_id, self.predict_model(model_id, predict_table[0], predict_table[1:])
 
     def delete_model(self, model_id: str) -> None:
-        requests.post(f'{self.backend_url}/model/delete_model_token/{model_id}', json={
+        response = requests.post(f'{self.backend_url}/model/delete_model_token/{model_id}', json={
             'access_token': self.access_token,
         })
+        if response.status_code == 401:
+            raise UnauthorizedException()
 
 
 class AsyncNextBrain(BaseNextBrain):
@@ -123,6 +146,8 @@ class AsyncNextBrain(BaseNextBrain):
         async with aiohttp.ClientSession() as session:
             while True:
                 async with session.post(f'{self.backend_url}/model/status_token/{model_id}', json=json) as response:
+                    if response.status == 401:
+                        raise UnauthorizedException()
                     data = await response.json()
                     if wait_imported:
                         if data['dataset_status'] == 'imported':
@@ -184,5 +209,7 @@ class AsyncNextBrain(BaseNextBrain):
         }
         async with aiohttp.ClientSession() as session:
             async with session.post(f'{self.backend_url}/model/delete_model_token/{model_id}', json=json) as response:
+                if response.status == 401:
+                    raise UnauthorizedException()
                 # Sequential await is required
                 await response.json()
