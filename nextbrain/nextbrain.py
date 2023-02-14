@@ -21,9 +21,15 @@ class UnauthorizedException(Exception):
 
 class BaseNextBrain(ABC):
 
-    def __init__(self, access_token: str, backend_url: str = 'https://api.nextbrain.ai'):
+    def __init__(
+        self,
+        access_token: str,
+        backend_url: str = 'https://api.nextbrain.ai',
+        is_app: bool = False,
+    ):
         self.access_token = access_token
         self.backend_url = backend_url
+        self.is_app = is_app
 
     @staticmethod
     def load_csv(path: str) -> List[List[Any]]:
@@ -58,9 +64,17 @@ class NextBrain(BaseNextBrain):
 
     def wait_model(self, model_id: str, wait_imported: bool = True) -> None:
         while True:
-            response = requests.post(f'{self.backend_url}/model/status_token/{model_id}', json={
-                'access_token': self.access_token,
-            })
+            if self.is_app:
+                response = requests.post(
+                    f'{self.backend_url}/app/status/{model_id}',
+                    headers={
+                        'access_token': self.access_token
+                    }
+                )
+            else:
+                response = requests.post(f'{self.backend_url}/model/status_token/{model_id}', json={
+                    'access_token': self.access_token,
+                })
 
             if response.status_code == 401:
                 raise UnauthorizedException()
@@ -81,10 +95,24 @@ class NextBrain(BaseNextBrain):
             time.sleep(2)
 
     def upload_model(self, table: List[List[Any]]) -> str:
-        response = requests.post(f'{self.backend_url}/csv/import_matrix_token', json={
-            'access_token': self.access_token,
-            'matrix': table,
-        })
+        if self.is_app:
+            response = requests.post(
+                f'{self.backend_url}/app/import_matrix',
+                json={
+                    'matrix': table,
+                },
+                headers={
+                    'access_token': self.access_token
+                }
+            )
+        else:
+            response = requests.post(
+                f'{self.backend_url}/csv/import_matrix_token',
+                json={
+                    'access_token': self.access_token,
+                    'matrix': table,
+                }
+            )
 
         if response.status_code == 401:
             raise UnauthorizedException()
@@ -95,11 +123,23 @@ class NextBrain(BaseNextBrain):
         return model_id
 
     def train_model(self, model_id: str, target: str) -> None:
-        response = requests.post(f'{self.backend_url}/model/train_token', json={
-            'access_token': self.access_token,
-            'target': target,
-            'model_id': model_id,
-        })
+        if self.is_app:
+            response = requests.post(
+                f'{self.backend_url}/app/train',
+                json={
+                    'target': target,
+                    'model_id': model_id,
+                },
+                headers={
+                    'access_token': self.access_token
+                }
+            )
+        else:
+            response = requests.post(f'{self.backend_url}/model/train_token', json={
+                'access_token': self.access_token,
+                'target': target,
+                'model_id': model_id,
+            })
 
         if response.status_code == 401:
             raise UnauthorizedException()
@@ -107,11 +147,25 @@ class NextBrain(BaseNextBrain):
         self.wait_model(model_id, wait_imported=False)
 
     def predict_model(self, model_id: str, header: List[str], rows: List[List[Any]]) -> Dict:
-        response = requests.post(f'{self.backend_url}/model/predict_token/{model_id}', json={
-            'access_token': self.access_token,
-            'header': header,
-            'rows': rows,
-        })
+        if self.is_app:
+            response = requests.post(
+                f'{self.backend_url}/app/predict/{model_id}',
+                json={
+                    'header': header,
+                    'rows': rows,
+                },
+                headers={
+                    'access_token': self.access_token
+                }
+            )
+        else:
+            response = requests.post(f'{self.backend_url}/model/predict_token/{model_id}',
+                                     json={
+                                         'access_token': self.access_token,
+                                         'header': header,
+                                         'rows': rows,
+                                     }
+                                     )
 
         if response.status_code == 401:
             raise UnauthorizedException()
@@ -124,9 +178,20 @@ class NextBrain(BaseNextBrain):
         return model_id, self.predict_model(model_id, predict_table[0], predict_table[1:])
 
     def delete_model(self, model_id: str) -> None:
-        response = requests.post(f'{self.backend_url}/model/delete_model_token/{model_id}', json={
-            'access_token': self.access_token,
-        })
+        if self.is_app:
+            response = requests.post(
+                f'{self.backend_url}/app/delete_model/{model_id}',
+                headers={
+                    'access_token': self.access_token
+                }
+            )
+        else:
+            response = requests.post(f'{self.backend_url}/model/delete_model_token/{model_id}',
+                                     json={
+                                         'access_token': self.access_token,
+                                     }
+                                     )
+
         if response.status_code == 401:
             raise UnauthorizedException()
 
@@ -140,12 +205,21 @@ class AsyncNextBrain(BaseNextBrain):
         super().__init__(access_token, **kwargs)
 
     async def wait_model(self, model_id: str, wait_imported: bool = True) -> None:
-        json = {
-            'access_token': self.access_token
-        }
         async with aiohttp.ClientSession() as session:
             while True:
-                async with session.post(f'{self.backend_url}/model/status_token/{model_id}', json=json) as response:
+                kwargs = {}
+                if self.is_app:
+                    url = f'{self.backend_url}/app/status/{model_id}'
+                    kwargs['headers'] = {
+                        'access_token': self.access_token
+                    }
+                else:
+                    url = f'{self.backend_url}/model/status_token/{model_id}'
+                    kwargs['json'] = {
+                        'access_token': self.access_token
+                    }
+
+                async with session.post(url, **kwargs) as response:
                     if response.status == 401:
                         raise UnauthorizedException()
                     data = await response.json()
@@ -164,12 +238,24 @@ class AsyncNextBrain(BaseNextBrain):
                 await asyncio.sleep(2)
 
     async def upload_model(self, table: List[List[Any]]) -> str:
-        json = {
-            'access_token': self.access_token,
-            'matrix': table,
-        }
+        kwargs = {}
+        if self.is_app:
+            url = f'{self.backend_url}/app/import_matrix'
+            kwargs['json'] = {
+                'matrix': table,
+            }
+            kwargs['headers'] = {
+                'access_token': self.access_token
+            }
+        else:
+            url = f'{self.backend_url}/csv/import_matrix_token'
+            kwargs['json'] = {
+                'matrix': table,
+                'access_token': self.access_token
+            }
+
         async with aiohttp.ClientSession() as session:
-            async with session.post(f'{self.backend_url}/csv/import_matrix_token', json=json) as response:
+            async with session.post(url, **kwargs) as response:
                 data = await response.json()
                 model_id = data['model']['id']
                 await self.wait_model(model_id)
@@ -177,24 +263,54 @@ class AsyncNextBrain(BaseNextBrain):
 
     async def train_model(self, model_id: str, target: str) -> None:
         json = {
-            'access_token': self.access_token,
             'target': target,
             'model_id': model_id,
         }
+
+        if self.is_app:
+            url = f'{self.backend_url}/app/train'
+            kwargs = {
+                'json': json,
+                'headers': {
+                    'access_token': self.access_token
+                }
+            }
+        else:
+            url = f'{self.backend_url}/model/train_token'
+            json['access_token'] = self.access_token
+            kwargs = {
+                'json': json
+            }
+
         async with aiohttp.ClientSession() as session:
-            async with session.post(f'{self.backend_url}/model/train_token', json=json) as response:
+            async with session.post(url, **kwargs) as response:
                 # Sequential await is required
                 await response.json()
                 await self.wait_model(model_id, wait_imported=False)
 
     async def predict_model(self, model_id: str, header: List[str], rows: List[List[Any]]) -> Dict:
         json = {
-            'access_token': self.access_token,
             'header': header,
             'rows': rows,
         }
+
+        if self.is_app:
+            url = f'{self.backend_url}/app/predict/{model_id}'
+            kwargs = {
+                'json': json,
+                'headers': {
+                    'access_token': self.access_token
+                }
+            }
+        else:
+            url = f'{self.backend_url}/model/predict_token/{model_id}'
+            json['access_token'] = self.access_token
+            kwargs = {
+                'json': json
+            }
+
         async with aiohttp.ClientSession() as session:
-            async with session.post(f'{self.backend_url}/model/predict_token/{model_id}', json=json) as response:
+            async with session.post(url, **kwargs) as response:
                 return await response.json()
 
     async def upload_and_predict(self, table: List[List[Any]], predict_table: List[List[Any]], target: str) -> Tuple[str, Dict]:
@@ -204,11 +320,23 @@ class AsyncNextBrain(BaseNextBrain):
         return model_id, await self.predict_model(model_id, predict_table[0], predict_table[1:])
 
     async def delete_model(self, model_id: str) -> None:
-        json = {
-            'access_token': self.access_token,
-        }
+        if self.is_app:
+            url = f'{self.backend_url}/app/delete_model/{model_id}'
+            kwargs = {
+                'headers': {
+                    'access_token': self.access_token
+                }
+            }
+        else:
+            url = f'{self.backend_url}/model/delete_model_token/{model_id}'
+            kwargs = {
+                'json': {
+                    'access_token': self.access_token,
+                }
+            }
+
         async with aiohttp.ClientSession() as session:
-            async with session.post(f'{self.backend_url}/model/delete_model_token/{model_id}', json=json) as response:
+            async with session.post(url, **kwargs) as response:
                 if response.status == 401:
                     raise UnauthorizedException()
                 # Sequential await is required
