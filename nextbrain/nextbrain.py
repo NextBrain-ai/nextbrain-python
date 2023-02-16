@@ -62,6 +62,24 @@ class NextBrain(BaseNextBrain):
     def __init__(self, access_token: str, **kwargs):
         super().__init__(access_token, **kwargs)
 
+    def get_accuracy(self, model_id: str) -> None:
+        if self.is_app:
+            response = requests.get(
+                f'{self.backend_url}/app/acc/{model_id}',
+                headers={
+                    'access_token': self.access_token
+                }
+            )
+        else:
+            response = requests.get(f'{self.backend_url}/model/acc_token/{model_id}', json={
+                'access_token': self.access_token,
+            })
+
+        if response.status_code == 401:
+            raise UnauthorizedException()
+
+        return response.json()
+
     def wait_model(self, model_id: str, wait_imported: bool = True) -> None:
         while True:
             if self.is_app:
@@ -203,6 +221,25 @@ class AsyncNextBrain(BaseNextBrain):
             raise ImportError(
                 'asyncio and aiohttp are required for async usage')
         super().__init__(access_token, **kwargs)
+
+    async def get_accuracy(self, model_id: str) -> float:
+        async with aiohttp.ClientSession() as session:
+            if self.is_app:
+                response = await session.get(
+                    f'{self.backend_url}/app/acc/{model_id}',
+                    headers={
+                        'access_token': self.access_token
+                    }
+                )
+            else:
+                response = await session.get(f'{self.backend_url}/model/acc_token/{model_id}', json={
+                    'access_token': self.access_token,
+                })
+
+            if response.status == 401:
+                raise UnauthorizedException()
+
+            return await response.json()
 
     async def wait_model(self, model_id: str, wait_imported: bool = True) -> None:
         async with aiohttp.ClientSession() as session:
