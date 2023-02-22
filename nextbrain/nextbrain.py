@@ -45,7 +45,7 @@ class BaseNextBrain(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def train_model(self, model_id: str, target: str):
+    def train_model(self, model_id: str, target: str, is_lightning: bool = False):
         raise NotImplementedError()
 
     @abstractmethod
@@ -71,7 +71,7 @@ class NextBrain(BaseNextBrain):
                 }
             )
         else:
-            response = requests.get(f'{self.backend_url}/model/acc_token/{model_id}', json={
+            response = requests.post(f'{self.backend_url}/model/acc_token/{model_id}', json={
                 'access_token': self.access_token,
             })
 
@@ -140,13 +140,14 @@ class NextBrain(BaseNextBrain):
         self.wait_model(model_id)
         return model_id
 
-    def train_model(self, model_id: str, target: str) -> None:
+    def train_model(self, model_id: str, target: str, is_lightning: bool = False) -> None:
         if self.is_app:
             response = requests.post(
                 f'{self.backend_url}/app/train',
                 json={
                     'target': target,
                     'model_id': model_id,
+                    'is_lightning': is_lightning,
                 },
                 headers={
                     'access_token': self.access_token
@@ -157,6 +158,7 @@ class NextBrain(BaseNextBrain):
                 'access_token': self.access_token,
                 'target': target,
                 'model_id': model_id,
+                'is_lightning': is_lightning,
             })
 
         if response.status_code == 401:
@@ -232,7 +234,7 @@ class AsyncNextBrain(BaseNextBrain):
                     }
                 )
             else:
-                response = await session.get(f'{self.backend_url}/model/acc_token/{model_id}', json={
+                response = await session.post(f'{self.backend_url}/model/acc_token/{model_id}', json={
                     'access_token': self.access_token,
                 })
 
@@ -298,10 +300,11 @@ class AsyncNextBrain(BaseNextBrain):
                 await self.wait_model(model_id)
                 return model_id
 
-    async def train_model(self, model_id: str, target: str) -> None:
+    async def train_model(self, model_id: str, target: str, is_lightning: bool = False) -> None:
         json = {
             'target': target,
             'model_id': model_id,
+            'is_lightning': is_lightning,
         }
 
         if self.is_app:
