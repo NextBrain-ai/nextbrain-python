@@ -1,5 +1,5 @@
-# NextBrain
-Convenient access to the [NextBrain](https://nextbrain.ai) API from python
+# NextBrain AI
+Convenient access to the [NextBrain AI](https://nextbrain.ai) API from python
 
 ## Installation
 ```bash
