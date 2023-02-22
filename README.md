@@ -107,3 +107,9 @@ if __name__ == '__main__':
     import asyncio
     asyncio.run(main())
 ```
+
+## Extra notes
+
+Everytime you train, you can select an option to create lightning models. `is_lightning` is an optional parameter that by default is set to `False` but can be overrided in `train_model` and `upload_and_predict`.
+
+We also recommend that you investigate all the methods that the class provides you with to make the most of the functionalities we offer. For example, you can use the `get_accuracy` method to obtain all the information about the performance of your model.

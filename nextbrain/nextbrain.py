@@ -53,7 +53,7 @@ class BaseNextBrain(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def upload_and_predict(self, table: List[List[Any]], predict_table: List[List[Any]], target: str) -> Dict:
+    def upload_and_predict(self, table: List[List[Any]], predict_table: List[List[Any]], target: str, is_lightning: bool = False) -> Dict:
         raise NotImplementedError()
 
 
@@ -192,9 +192,9 @@ class NextBrain(BaseNextBrain):
 
         return response.json()
 
-    def upload_and_predict(self, table: List[List[Any]], predict_table: List[List[Any]], target: str) -> Tuple[str, Dict]:
+    def upload_and_predict(self, table: List[List[Any]], predict_table: List[List[Any]], target: str, is_lightning: bool = False) -> Tuple[str, Dict]:
         model_id = self.upload_model(table)
-        self.train_model(model_id, target)
+        self.train_model(model_id, target, is_lightning=is_lightning)
         return model_id, self.predict_model(model_id, predict_table[0], predict_table[1:])
 
     def delete_model(self, model_id: str) -> None:
@@ -353,10 +353,10 @@ class AsyncNextBrain(BaseNextBrain):
             async with session.post(url, **kwargs) as response:
                 return await response.json()
 
-    async def upload_and_predict(self, table: List[List[Any]], predict_table: List[List[Any]], target: str) -> Tuple[str, Dict]:
+    async def upload_and_predict(self, table: List[List[Any]], predict_table: List[List[Any]], target: str, is_lightning: bool = False) -> Tuple[str, Dict]:
         # Required sequential await
         model_id = await self.upload_model(table)
-        await self.train_model(model_id, target)
+        await self.train_model(model_id, target, is_lightning=is_lightning)
         return model_id, await self.predict_model(model_id, predict_table[0], predict_table[1:])
 
     async def delete_model(self, model_id: str) -> None:
