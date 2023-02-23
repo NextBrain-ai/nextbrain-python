@@ -53,6 +53,10 @@ class BaseNextBrain(ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    def random_predict(self, model_id: str) -> List[Any]:
+        raise NotImplementedError()
+
+    @abstractmethod
     def upload_and_predict(self, table: List[List[Any]], predict_table: List[List[Any]], target: str, is_lightning: bool = False) -> Dict:
         raise NotImplementedError()
 
@@ -166,7 +170,9 @@ class NextBrain(BaseNextBrain):
 
         self.wait_model(model_id, wait_imported=False)
 
-    def predict_model(self, model_id: str, header: List[str], rows: List[List[Any]]) -> Dict:
+    def predict_model(self, model_id: str, table: List[List[Any]]) -> Dict:
+        header = table[0]
+        rows = table[1:]
         if self.is_app:
             response = requests.post(
                 f'{self.backend_url}/app/predict/{model_id}',
@@ -192,10 +198,31 @@ class NextBrain(BaseNextBrain):
 
         return response.json()
 
+    def random_predict(self, model_id: str) -> Dict:
+        if self.is_app:
+            response = requests.post(
+                f'{self.backend_url}/app/random_predict/{model_id}',
+                headers={
+                    'access_token': self.access_token
+                }
+            )
+        else:
+            response = requests.post(
+                f'{self.backend_url}/model/random_predict_token/{model_id}',
+                json={
+                    'access_token': self.access_token,
+                }
+            )
+
+        if response.status_code == 401:
+            raise UnauthorizedException()
+
+        return response.json()
+
     def upload_and_predict(self, table: List[List[Any]], predict_table: List[List[Any]], target: str, is_lightning: bool = False) -> Tuple[str, Dict]:
         model_id = self.upload_model(table)
         self.train_model(model_id, target, is_lightning=is_lightning)
-        return model_id, self.predict_model(model_id, predict_table[0], predict_table[1:])
+        return model_id, self.predict_model(model_id, predict_table)
 
     def delete_model(self, model_id: str) -> None:
         if self.is_app:
@@ -328,7 +355,9 @@ class AsyncNextBrain(BaseNextBrain):
                 await response.json()
                 await self.wait_model(model_id, wait_imported=False)
 
-    async def predict_model(self, model_id: str, header: List[str], rows: List[List[Any]]) -> Dict:
+    async def predict_model(self, model_id: str, table: List[List[Any]]) -> Dict:
+        header = table[0]
+        rows = table[1:]
         json = {
             'header': header,
             'rows': rows,
@@ -353,11 +382,31 @@ class AsyncNextBrain(BaseNextBrain):
             async with session.post(url, **kwargs) as response:
                 return await response.json()
 
+    async def random_predict(self, model_id: str) -> Dict:
+        if self.is_app:
+            url = f'{self.backend_url}/app/random_predict/{model_id}'
+            kwargs = {
+                'headers': {
+                    'access_token': self.access_token
+                }
+            }
+        else:
+            url = f'{self.backend_url}/model/random_predict_token/{model_id}'
+            kwargs = {
+                'json': {
+                    'access_token': self.access_token
+                }
+            }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, **kwargs) as response:
+                return await response.json()
+
     async def upload_and_predict(self, table: List[List[Any]], predict_table: List[List[Any]], target: str, is_lightning: bool = False) -> Tuple[str, Dict]:
         # Required sequential await
         model_id = await self.upload_model(table)
         await self.train_model(model_id, target, is_lightning=is_lightning)
-        return model_id, await self.predict_model(model_id, predict_table[0], predict_table[1:])
+        return model_id, await self.predict_model(model_id, predict_table)
 
     async def delete_model(self, model_id: str) -> None:
         if self.is_app:

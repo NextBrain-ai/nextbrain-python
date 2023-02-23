@@ -23,6 +23,13 @@ def main():
     nb = NextBrain('<YOUR-ACCESS-TOKEN-HERE>')
 
     # You can create your custom table and predict table by your own from any source
+    # It is a list of list, where the first row contains the header
+    # Example:
+    # [
+    #   [ Column1, Column2, Column3 ],
+    #   [       1,       2,       3 ],
+    #   [       4,       5,       6 ]
+    # ]
     table: List[List[Any]] = nb.load_csv('<PATH-TO-YOUR-TRAINING-CSV>')
     predict_table: List[List[Any]] = nb.load_csv('<PATH-TO-YOUR-PREDICTING-CSV>')
 
@@ -52,7 +59,7 @@ def main():
 
     predict_table: List[List[Any]] = nb.load_csv('<PATH-TO-YOUR-PREDICTING-CSV>')
     # You can predict multiple using the same model (don't need to create a new model each time)
-    response = nb.predict_model(model_id, predict_table[0], predict_table[1:])
+    response = nb.predict_model(model_id, predict_table)
     print(response)
 
 if __name__ == '__main__':
@@ -100,7 +107,7 @@ async def main():
 
     predict_table: List[List[Any]] = nb.load_csv('<PATH-TO-YOUR-PREDICTING-CSV>')
     # You can predict multiple using the same model (don't need to create a new model each time)
-    response = await nb.predict_model(model_id, predict_table[0], predict_table[1:])
+    response = await nb.predict_model(model_id, predict_table)
     print(response)
 
 if __name__ == '__main__':
