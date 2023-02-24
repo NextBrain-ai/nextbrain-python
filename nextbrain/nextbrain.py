@@ -64,6 +64,10 @@ class BaseNextBrain(ABC):
     def upload_and_predict(self, table: List[List[Any]], predict_table: List[List[Any]], target: str, is_lightning: bool = False) -> Dict:
         raise NotImplementedError()
 
+    @abstractmethod
+    def get_all_model_ids(self) -> List[Dict]:
+        raise NotImplementedError()
+
 
 class NextBrain(BaseNextBrain):
 
@@ -266,6 +270,27 @@ class NextBrain(BaseNextBrain):
 
         if response.status_code == 401:
             raise UnauthorizedException()
+
+    def get_all_model_ids(self) -> List[Dict]:
+        if self.is_app:
+            response = requests.get(
+                f'{self.backend_url}/app/model_ids',
+                headers={
+                    'access_token': self.access_token
+                }
+            )
+        else:
+            response = requests.post(
+                f'{self.backend_url}/model/model_ids_token',
+                json={
+                    'access_token': self.access_token,
+                }
+            )
+
+        if response.status_code == 401:
+            raise UnauthorizedException()
+
+        return response.json()
 
 
 class AsyncNextBrain(BaseNextBrain):
@@ -476,3 +501,26 @@ class AsyncNextBrain(BaseNextBrain):
                     raise UnauthorizedException()
                 # Sequential await is required
                 await response.json()
+
+    async def get_all_model_ids(self) -> List[Dict]:
+        if self.is_app:
+            url = f'{self.backend_url}/app/model_ids'
+            kwargs = {
+                'headers': {
+                    'access_token': self.access_token
+                }
+            }
+        else:
+            url = f'{self.backend_url}/model/model_ids_token'
+            kwargs = {
+                'json': {
+                    'access_token': self.access_token
+                }
+            }
+
+        async with aiohttp.ClientSession() as session:
+            method = session.get if self.is_app else session.post
+            async with method(url, **kwargs) as response:
+                if response.status == 401:
+                    raise UnauthorizedException()
+                return await response.json()
