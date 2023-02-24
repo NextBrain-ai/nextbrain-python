@@ -57,14 +57,18 @@ class BaseNextBrain(ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    def get_predict_columns(self, model_id: str) -> List[str]:
+        raise NotImplementedError()
+
+    @abstractmethod
     def upload_and_predict(self, table: List[List[Any]], predict_table: List[List[Any]], target: str, is_lightning: bool = False) -> Dict:
         raise NotImplementedError()
 
 
 class NextBrain(BaseNextBrain):
 
-    def __init__(self, access_token: str, **kwargs):
-        super().__init__(access_token, **kwargs)
+    def __init__(self, access_token: str, *args, **kwargs):
+        super().__init__(access_token, *args, **kwargs)
 
     def get_accuracy(self, model_id: str) -> None:
         if self.is_app:
@@ -219,6 +223,27 @@ class NextBrain(BaseNextBrain):
 
         return response.json()
 
+    def get_predict_columns(self, model_id: str) -> List[str]:
+        if self.is_app:
+            response = requests.get(
+                f'{self.backend_url}/app/predict_columns/{model_id}',
+                headers={
+                    'access_token': self.access_token
+                }
+            )
+        else:
+            response = requests.post(
+                f'{self.backend_url}/model/predict_columns_token/{model_id}',
+                json={
+                    'access_token': self.access_token,
+                }
+            )
+
+        if response.status_code == 401:
+            raise UnauthorizedException()
+
+        return response.json()
+
     def upload_and_predict(self, table: List[List[Any]], predict_table: List[List[Any]], target: str, is_lightning: bool = False) -> Tuple[str, Dict]:
         model_id = self.upload_model(table)
         self.train_model(model_id, target, is_lightning=is_lightning)
@@ -245,11 +270,11 @@ class NextBrain(BaseNextBrain):
 
 class AsyncNextBrain(BaseNextBrain):
 
-    def __init__(self, access_token: str, **kwargs):
+    def __init__(self, access_token: str, *args, **kwargs):
         if not ASYNC_AVAILABLE:
             raise ImportError(
                 'asyncio and aiohttp are required for async usage')
-        super().__init__(access_token, **kwargs)
+        super().__init__(access_token, *args, **kwargs)
 
     async def get_accuracy(self, model_id: str) -> float:
         async with aiohttp.ClientSession() as session:
@@ -400,6 +425,27 @@ class AsyncNextBrain(BaseNextBrain):
 
         async with aiohttp.ClientSession() as session:
             async with session.post(url, **kwargs) as response:
+                return await response.json()
+
+    async def get_predict_columns(self, model_id: str) -> List[str]:
+        if self.is_app:
+            url = f'{self.backend_url}/app/predict_columns/{model_id}'
+            kwargs = {
+                'headers': {
+                    'access_token': self.access_token
+                }
+            }
+        else:
+            url = f'{self.backend_url}/model/predict_columns_token/{model_id}'
+            kwargs = {
+                'json': {
+                    'access_token': self.access_token
+                }
+            }
+
+        async with aiohttp.ClientSession() as session:
+            method = session.get if self.is_app else session.post
+            async with method(url, **kwargs) as response:
                 return await response.json()
 
     async def upload_and_predict(self, table: List[List[Any]], predict_table: List[List[Any]], target: str, is_lightning: bool = False) -> Tuple[str, Dict]:
